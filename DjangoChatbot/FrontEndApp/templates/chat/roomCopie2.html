@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Bot</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  {% load static %}
+  <link rel="stylesheet" href="{%  static  'css/style.css'  %}">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+</head>
+
+<body>
+  <!-- partial:index.partial.html -->
+  <section class="msger">
+    <header class="msger-header">
+      <div class="msger-header-title">
+        <i class="fas fa-bug"></i>Banking Assistant <i class="fas fa-bug"></i>
+      </div>
+      <div>
+        <select id="languageSelector" class="msger-language">
+          <option value="English">English</option>
+          <option value="French">French</option>
+          <option value="Spanish">Spanish</option>
+        </select>
+      </div>
+    </header>
+
+    <main class="msger-chat">
+
+
+    </main>
+    <div class="msger-inputarea">
+        <input id="chat-message-input" class="msger-input" type="text" size="100">
+        <input id="chat-message-submit" class="msger-send-btn" type="button" value="Send">
+    </div>
+  </section>
+  <!-- partial -->
+
+  <script>
+
+    const msgerForm = get(".msger-inputarea");
+    const msgerInput = get(".msger-input");
+    const msgerChat = get(".msger-chat");
+
+
+    // Icons made by Freepik from www.flaticon.com
+    const BOT_IMG = "https://image.flaticon.com/icons/svg/327/327779.svg";
+    const PERSON_IMG = "https://image.flaticon.com/icons/svg/145/145867.svg";
+    const BOT_NAME = "Bot";
+    const PERSON_NAME = "You";
+
+    var language = document.getElementById("languageSelector")
+    lanJson = { "English": "en", "French": "fr", "Spanish": "es" }
+    document.querySelector('#chat-message-input').focus();
+    document.querySelector('#chat-message-input').onkeyup = function(e) {
+      if (e.keyCode === 13) {  // enter, return
+                 console.log("clicked")
+                document.querySelector('#chat-message-submit').click();
+            }
+        };
+
+    document.querySelector('#chat-message-submit').onclick = function(event) {
+      event.preventDefault();
+
+      const msgText = msgerInput.value;
+      if (!msgText) return;
+
+      appendMessage(PERSON_NAME, PERSON_IMG, "right", msgText);
+      msgerInput.value = "";
+      const url = "sendMessage"
+      const data = { msg: msgText, lang: lanJson[language.value], 'csrfmiddlewaretoken': '{{ csrf_token }}' }
+
+      $.post(url, data, function (data, status) {
+        console.log(data);
+        console.log(data.custom)
+
+        appendMessage(BOT_NAME, BOT_IMG, "left", data);
+        if (data.custom) {
+          console.log(data.custom["banker_id"])
+          humanAgent(data.custom["banker_id"])
+        }
+
+      })
+
+    };
+
+    function appendMessage(name, img, side, data) {
+      if (typeof(data)=="string"){
+        var msgHTML = `
+              <div class="msg ${side}-msg">
+                <div class="msg-img" style="background-image: url(${img})"></div>
+
+                <div class="msg-bubble">
+                  <div class="msg-info">
+                    <div class="msg-info-name">${name}</div>
+                    <div class="msg-info-time">${formatDate(new Date())}</div>
+                  </div>
+
+                  <div class="msg-text">${data}</div>
+                </div>
+              </div>`;
+        msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+        msgerChat.scrollTop += 500;}
+      else if (data.hasOwnProperty("buttons")==false) {
+      var msgHTML = `
+                <div class="msg ${side}-msg">
+                  <div class="msg-img" style="background-image: url(${img})"></div>
+
+                  <div class="msg-bubble">
+                    <div class="msg-info">
+                      <div class="msg-info-name">${name}</div>
+                      <div class="msg-info-time">${formatDate(new Date())}</div>
+                    </div>
+
+                    <div class="msg-text">${data["text"]}</div>
+                  </div>
+                </div>`;
+        msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+        msgerChat.scrollTop += 500;}
+        else if (data.hasOwnProperty("buttons")){
+        console.log(typeof (data["buttons"]))
+        var msgHTML = `
+<div class="msg ${side}-msg">
+  <div class="msg-img" style="background-image: url(${img})"></div>
+
+  <div class="msg-bubble">
+    <div class="msg-info">
+      <div class="msg-info-name">${name}</div>
+      <div class="msg-info-time">${formatDate(new Date())}</div>
+    </div>
+
+    <div class="msg-text">${data["text"]}</div><br> `;
+        data["buttons"].forEach(element => {
+          const buttonHTML = `<button onclick="chooseButton('${element["payload"]}','${element["title"]}','${element["entity"]}')">${element["title"]}</button><br> `;
+          console.log(element["payload"]);
+          console.log(typeof(element["payload"]));
+
+          msgHTML=msgHTML.concat(buttonHTML);
+          console.log(element["title"])
+
+        });
+        msgHTML=msgHTML.concat(`</div>
+                            </div>`);
+        console.log(msgHTML)
+
+
+        msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+        msgerChat.scrollTop += 500;}
+
+
+      }
+
+    function chooseButton(payload,title,entity){
+      const url = "sendMessage"
+      const message=payload.concat('{"',entity,'":"',title,'"}')
+      console.log(message)
+      console.log(typeof(message))
+      const data = { msg: message, lang: "en", 'csrfmiddlewaretoken': '{{ csrf_token }}' }
+
+      $.post(url, data, function (data, status) {
+        console.log(typeof(data));
+        console.log(data)
+        appendMessage(BOT_NAME, BOT_IMG, "left", data);
+
+      })
+
+    }
+    function humanAgent(roomName) {
+    const msgerChat = document.getElementById('msg-chat');
+        const chatSocket = new WebSocket(
+            'ws://'
+            + '127.0.0.1:8081'
+            + '/ws/chat/'
+            + roomName
+            + '/'
+        );
+
+        chatSocket.onmessage = function(e) {
+            console.log(e)
+            const data = JSON.parse(e.data);
+            if ( data.message_from=="client")
+            {appendMessage(PERSON_NAME, PERSON_IMG, "right", data.message); }
+            else {appendMessage("Bank Assistant", PERSON_IMG, "left", data.message);}
+
+
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        document.querySelector('#chat-message-input').focus();
+        document.querySelector('#chat-message-input').onkeyup = function(e) {
+            if (e.keyCode === 13) {  // enter, return
+                 console.log("clicked")
+                document.querySelector('#chat-message-submit').click();
+            }
+        };
+
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+            const user= 'client';
+            chatSocket.send(JSON.stringify({
+                message: message,
+                message_from:user
+            }));
+            messageInputDom.value = '';
+        };
+
+
+    }
+
+
+
+
+
+
+
+    // Utils
+    function get(selector, root = document) {
+      return root.querySelector(selector);
+    }
+
+    function formatDate(date) {
+      const h = "0" + date.getHours();
+      const m = "0" + date.getMinutes();
+
+      return `${h.slice(-2)}:${m.slice(-2)}`;
+    }
+
+
+
+  </script>
+
+</body>
+
+</html>

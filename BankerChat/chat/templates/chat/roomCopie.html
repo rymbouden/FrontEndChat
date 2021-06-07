@@ -1,0 +1,118 @@
+<!-- chat/templates/chat/room.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+  <title>Bot</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  {% load static %}
+  <link rel="stylesheet" href="{%  static  'css/backCss.css'  %}">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+
+
+
+</head>
+
+<body>
+  <!-- partial:index.partial.html -->
+      <div class="chat">
+      <div class="chat-header clearfix">
+        <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/195612/chat_avatar_01_green.jpg" alt="avatar" />
+
+        <div class="chat-about">
+          <div class="chat-with">Chat</div>
+        </div>
+
+        <i class="fa fa-star"></i>
+      </div> <!-- end chat-header -->
+
+      <div class="chat-history" >
+
+
+      </div> <!-- end chat-history -->
+
+      <div class="chat-message clearfix">
+        <textarea name="message-to-send" id="message-to-send" class="msger-input" placeholder ="Type your message" rows="3"></textarea>
+
+        <i class="fa fa-file-o"></i> &nbsp;&nbsp;&nbsp;
+        <i class="fa fa-file-image-o"></i>
+
+        <input id="chat-message-submit" class="msger-send-btn" type="button" value="Send">
+
+      </div> <!-- end chat-message -->
+
+    </div> <!-- end chat -->
+
+  <!-- partial -->
+  {{ room_name|json_script:"room-name" }}
+    <script>
+        const msgerChat = get(".chat-history");
+        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+
+        const chatSocket = new WebSocket(
+            'ws://'
+            + window.location.host
+            + '/ws/chat/'
+            + roomName
+            + '/'
+        );
+
+       chatSocket.onmessage = function(e) {
+            console.log(e)
+            const data = JSON.parse(e.data);
+            if ( data.message_from=="client")
+            {appendMessage("Client", "other-message", "right", data.message); }
+            else {appendMessage("You", "my-message", "left", data.message);}
+
+
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        document.querySelector('#message-to-send').focus();
+        document.querySelector('#message-to-send').onkeyup = function(e) {
+            if (e.keyCode === 13) {  // enter, return
+                 console.log("clicked")
+                document.querySelector('#chat-message-submit').click();
+            }
+        };
+
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#message-to-send');
+            const message = messageInputDom.value;
+            const user= 'banker';
+            chatSocket.send(JSON.stringify({
+                message: message,
+                message_from:user
+            }));
+            messageInputDom.value = '';
+        };
+        function appendMessage(name, who, side, data) {
+        var msgHTML = `
+
+            <div class="message-data align-${side}">
+              <span class="message-data-name"><i class="fa fa-circle online"></i>${name}</span>
+
+            </div>
+            <div class="message ${who} float-${side}">
+              ${data}
+            </div>
+          `;
+        msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+        msgerChat.scrollTop += 500;}
+
+
+    // Utils
+    function get(selector, root = document) {
+      return root.querySelector(selector);
+    }
+    </script>
+</body>
+</html>

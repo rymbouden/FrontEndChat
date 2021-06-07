@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>CoronaBot</title>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="ie=edge" http-equiv="X-UA-Compatible">
+    {% load static %}
+    <link href="{%  static  'css/style.css'  %}" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+</head>
+
+<body>
+<!-- partial:index.partial.html -->
+<section class="msger">
+    <header class="msger-header">
+        <div class="msger-header-title">
+            <i class="fas fa-bug"></i>Banking Assistant <i class="fas fa-bug"></i>
+        </div>
+        <div>
+            <select class="msger-language" id="languageSelector">
+                <option value="English">English</option>
+                <option value="French">French</option>
+                <option value="Spanish">Spanish</option>
+            </select>
+        </div>
+    </header>
+
+    <main class="msger-chat" id="msg-chat">
+        <div class="msg left-msg">
+            <div class="msg-img"
+                 style="background-image: url(https://image.flaticon.com/icons/svg/327/327779.svg)"></div>
+
+            <div class="msg-bubble">
+                <div class="msg-info">
+                    <div class="msg-info-name">Bot</div>
+                    <div class="msg-info-time">12:45</div>
+                </div>
+
+                <div class="msg-text" id="EnglishBubble" style="display: inline ;">
+                    Hi, welcome to your banking assistant! Go ahead and send me a message. 😄
+                </div>
+                <div class="msg-text" id="FrenchBubble" style="display: none ;">
+                    Bonjour, bienvenue dans votre assistant bancaire! Allez-y et envoyez-moi un message. 😄
+                </div>
+                <div class="msg-text" id="SpanishBubble" style="display: none ;">
+                    Hola, bienvenido a tu asistente bancario. Adelante, envíame un mensaje. 😄
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+    <div class="msger-inputarea">
+        <input id="chat-message-input" class="msger-input" type="text" size="100">
+        <input id="chat-message-submit" class="msger-send-btn" type="button" value="Send">
+    </div>
+</section>
+<!-- partial -->
+<script src='https://use.fontawesome.com/releases/v5.0.13/js/all.js'></script>
+<script>
+        const msgerChat = document.getElementById('msg-chat');
+        const roomName = 'lobby'
+        const chatSocket = new WebSocket(
+            'ws://'
+            + '127.0.0.1:8081'
+            + '/ws/chat/'
+            + roomName
+            + '/'
+        );
+
+        chatSocket.onmessage = function(e) {
+            console.log(e)
+            const data = JSON.parse(e.data);
+
+            var msgHTML = `
+            <div class="msg right-msg">
+
+
+              <div class="msg-bubble">
+                <div class="msg-info">
+                  <div class="msg-info-name">Test</div>
+                </div>
+
+                <div class="msg-text">${data.message}</div>
+              </div>
+            </div>`;
+        msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+        msgerChat.scrollTop += 500;
+
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        document.querySelector('#chat-message-input').focus();
+        document.querySelector('#chat-message-input').onkeyup = function(e) {
+            if (e.keyCode === 13) {  // enter, return
+                 console.log("clicked")
+                document.querySelector('#chat-message-submit').click();
+            }
+        };
+
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+            const user= 'client';
+            chatSocket.send(JSON.stringify({
+                message: message,
+                message_from:user
+            }));
+            messageInputDom.value = '';
+        };
+
+
+
+
+
+</script>
+
+</body>
+
+</html>

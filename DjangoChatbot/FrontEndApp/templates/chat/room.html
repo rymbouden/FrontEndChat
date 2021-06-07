@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+  <title>Bot</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  {% load static %}
+  <link rel="stylesheet" href="{%  static  'css/backCss.css'  %}">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script> 
+
+
+  
+
+</head>
+
+<body>
+  <!-- partial:index.partial.html -->
+      <div class="chat">
+      <div class="chat-header clearfix">
+
+        <div class="chat-about">
+          <div class="chat-with">Chat</div>
+        </div>
+        <div>
+          <select id="languageSelector" class="msger-language">
+            <option value="English">English</option>
+            <option value="French">French</option>
+            <option value="Spanish">Spanish</option>
+          </select>
+        </div>
+        <i class="fa fa-star"></i>
+      </div> <!-- end chat-header -->
+
+      <div class="chat-history" >
+       
+
+      </div> <!-- end chat-history -->
+
+      <div class="chat-message clearfix">
+        <textarea name="message-to-send" id="message-to-send" class="msger-input" placeholder ="Type your message" rows="3"></textarea>
+
+        <i class="fa fa-file-o"></i> &nbsp;&nbsp;&nbsp;
+        <i class="fa fa-file-image-o"></i>
+
+        <input id="chat-message-submit" class="msger-send-btn" type="button" value="Send">
+
+      </div> <!-- end chat-message -->
+
+    </div> <!-- end chat -->
+
+  <!-- partial -->
+
+  <script>
+
+    
+    const msgerInput = get(".msger-input");
+    const msgerChat = get(".chat-history");
+
+
+    // Icons made by Freepik from www.flaticon.com
+    const BOT_IMG = "https://image.flaticon.com/icons/svg/327/327779.svg";
+    const PERSON_IMG = "https://image.flaticon.com/icons/svg/145/145867.svg";
+    const BOT_NAME = "Bot";
+    const PERSON_NAME = "You";
+
+    var language = document.getElementById("languageSelector")
+    lanJson = { "English": "en", "French": "fr", "Spanish": "es" }
+    document.querySelector('#message-to-send').focus();
+    document.querySelector('#message-to-send').onkeyup = function(e) {
+      if (e.keyCode === 13) {  // enter, return
+                 console.log("clicked")
+                document.querySelector('#chat-message-submit').click();
+            }
+        };
+
+    document.querySelector('#chat-message-submit').onclick = function(event) {
+      event.preventDefault();
+
+      const msgText = msgerInput.value;
+      if (!msgText) return;
+
+      appendMessage(PERSON_NAME, "other-message", "right", msgText);
+      msgerInput.value = "";
+      const url = "sendMessage";
+      const data = { msg: msgText, lang: lanJson[language.value], 'csrfmiddlewaretoken': '{{ csrf_token }}' }
+
+      $.post(url, data, function (data, status) {
+        console.log(data);
+        console.log(data.custom)
+
+        appendMessage(BOT_NAME, "my-message", "left", data);
+        if (data.custom) {
+          console.log(data.custom["banker_id"])
+          humanAgent(data.custom["banker_id"])
+        }
+
+      })
+
+    };
+
+    function appendMessage(name, who, side, data) {
+      if (typeof(data)=="string"){
+        var msgHTML = `
+        
+            <div class="message-data align-${side}">
+              <span class="message-data-name"><i class="fa fa-circle online"></i>${name}</span>
+              <span class="message-data-time">${formatDate(new Date())}</span>
+            </div>
+            <div class="message ${who} float-${side}">
+              ${data}
+            </div>
+          `;
+        msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+        msgerChat.scrollTop += 500;}
+      else if (data.hasOwnProperty("buttons")==false) {
+      var msgHTML = `
+      
+            <div class="message-data align-${side}">
+              <span class="message-data-name"><i class="fa fa-circle online"></i>${name}</span>
+              <span class="message-data-time">${formatDate(new Date())}</span>
+            </div>
+            <div class="message ${who} float-${side}">
+              ${data["text"]}
+            </div>
+        `;
+        msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+        msgerChat.scrollTop += 500;}
+        else if (data.hasOwnProperty("buttons")){
+        console.log(typeof (data["buttons"]))
+        var msgHTML = `
+        
+            <div class="message-data align-${side}">
+              <span class="message-data-name"><i class="fa fa-circle online"></i>${name}</span>
+              <span class="message-data-time">${formatDate(new Date())}</span>
+            </div>
+            <div class="message ${who} float-${side}">
+              ${data["text"]}
+            
+           `;
+        data["buttons"].forEach(element => {
+          const buttonHTML = `<button onclick="chooseButton('${element["payload"]}','${element["title"]}','${element["entity"]}')">${element["title"]}</button><br> `;
+          console.log(element["payload"]);
+          console.log(typeof(element["payload"]));
+
+          msgHTML=msgHTML.concat(buttonHTML);
+          console.log(element["title"])
+
+        });
+        msgHTML=msgHTML.concat(`</div>`);
+        console.log(msgHTML)
+
+
+        msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+        msgerChat.scrollTop += 500;}
+
+
+      }
+
+    function chooseButton(payload,title,entity){
+      const url = "sendMessage"
+      const message=payload.concat('{"',entity,'":"',title,'"}')
+      console.log(message)
+      console.log(typeof(message))
+      const data = { msg: message, lang: "en", 'csrfmiddlewaretoken': '{{ csrf_token }}' }
+
+      $.post(url, data, function (data, status) {
+        console.log(typeof(data));
+        console.log(data)
+        appendMessage(BOT_NAME, "my-message", "left", data);
+
+      })
+
+    }
+    function humanAgent(roomName) {
+    const msgerChat = document.getElementById('msg-chat');
+        const chatSocket = new WebSocket(
+            'ws://'
+            + '127.0.0.1:8081'
+            + '/ws/chat/'
+            + roomName
+            + '/'
+        );
+
+        chatSocket.onmessage = function(e) {
+            console.log(e)
+            const data = JSON.parse(e.data);
+            if ( data.message_from=="client")
+            {appendMessage(PERSON_NAME, "other-message", "right", data.message); }
+            else {appendMessage("Bank Assistant", "my-message", "left", data.message);}
+
+
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        document.querySelector('#message-to-send').focus();
+        document.querySelector('#message-to-send').onkeyup = function(e) {
+            if (e.keyCode === 13) {  // enter, return
+                 console.log("clicked")
+                document.querySelector('#chat-message-submit').click();
+            }
+        };
+
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#message-to-send');
+            const message = messageInputDom.value;
+            const user= 'client';
+            chatSocket.send(JSON.stringify({
+                message: message,
+                message_from:user
+            }));
+            messageInputDom.value = '';
+        };
+
+
+    }
+
+
+
+
+
+
+
+    // Utils
+    function get(selector, root = document) {
+      return root.querySelector(selector);
+    }
+
+    function formatDate(date) {
+      const h = "0" + date.getHours();
+      const m = "0" + date.getMinutes();
+
+      return `${h.slice(-2)}:${m.slice(-2)}`;
+    }
+
+
+
+  </script>
+
+</body>
+
+</html>
